@@ -1,3 +1,19 @@
+# df_business_dates
+df_business_dates = spark.createDataFrame([
+    ("2024-06-19",),
+    ("2024-06-20",),
+    ("2024-06-24",),
+], ["trade_date"]).withColumn("trade_date", F.to_date("trade_date"))
+
+# df_daily
+df_daily = spark.createDataFrame([
+    ("Occurs daily", "2024-06-19"),
+    ("Occurs daily", "2024-06-22"),  # Saturday (not in business dates)
+    ("Occurs daily", "2024-06-25"),  # No match, will be dropped
+], ["recurrence_text", "start_date"]).withColumn("start_date", F.to_date("start_date"))
+
+
+
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
