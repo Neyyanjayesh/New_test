@@ -1,27 +1,24 @@
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-# Assume df_fastbusiness has effective_date
-# Assume df_businessstates has business_date (pre-loaded list of business days)
-
-# Add row_id to uniquely identify each row
-df_fastbusiness = df_fastbusiness.withColumn(
-    "row_id", F.row_number().over(Window.orderBy("effective_date"))
+# Step 0: Add unique row ID to df_daily
+df_daily = df_daily.withColumn(
+    "row_id", F.row_number().over(Window.orderBy("start_date"))
 )
 
-# Step 1: Cross-join effective dates with business dates where business_date >= effective_date
-df_cross = df_fastbusiness.alias("eff").join(
-    df_businessstates.alias("biz"),
-    F.col("biz.business_date") >= F.col("eff.effective_date"),
+# Step 1: Join df_daily with df_business_dates where trade_date >= start_date
+df_cross = df_daily.alias("daily").join(
+    df_business_dates.alias("biz"),
+    F.col("biz.trade_date") >= F.col("daily.start_date"),
     how="inner"
 )
 
-# Step 2: For each effective_date, get the MIN business_date >= it (i.e. first one)
-window = Window.partitionBy("eff.row_id").orderBy("biz.business_date")
+# Step 2: Get the first matching trade_date for each start_date
+window = Window.partitionBy("daily.row_id").orderBy("biz.trade_date")
 
-df_with_rank = df_cross.withColumn("rank", F.row_number().over(window)) \
+df_with_derived = df_cross.withColumn("rank", F.row_number().over(window)) \
     .filter(F.col("rank") == 1) \
     .select(
-        F.col("eff.effective_date"),
-        F.col("biz.business_date").alias("next_business_day")
+        "daily.start_date",
+        F.col("biz.trade_date").alias("derived_date")
     )
